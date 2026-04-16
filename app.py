@@ -4,6 +4,22 @@ import os
 
 st.set_page_config(page_title="M-AI", layout="centered")
 
+st.markdown("""
+    <style>
+    [data-testid="stChatMessageAvatarUser"], 
+    [data-testid="stChatMessageAvatarAssistant"] {
+        display: none;
+    }
+    .stChatMessage {
+        background-color: transparent !important;
+        border-bottom: 1px solid #f0f0f0;
+        border-radius: 0px;
+    }
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("M-AI")
 st.markdown("---")
 
@@ -13,13 +29,14 @@ else:
     api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("Configurazione mancante.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# Inizializziamo il modello senza strumenti complessi per ora, per testare la connessione
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash-latest',
+    tools=[{"google_search_retrieval": {}}]
+)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -35,10 +52,9 @@ if prompt := st.chat_input("Inserire il messaggio"):
 
     with st.chat_message("assistant"):
         try:
-            # Generazione semplice per testare se la chiave funziona
             response = model.generate_content(prompt)
-            testo_risposta = response.text
-            st.write(testo_risposta)
-            st.session_state.messages.append({"role": "assistant", "content": testo_risposta})
+            if response.text:
+                st.write(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
         except Exception as e:
-            st.error(f"Errore tecnico: {str(e)}")
+            st.stop()
