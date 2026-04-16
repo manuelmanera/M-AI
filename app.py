@@ -33,11 +33,8 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Utilizzo di Gemini 2.0 Flash (il modello più avanzato e compatibile attualmente)
-model = genai.GenerativeModel(
-    model_name='gemini-2.0-flash',
-    tools=[{"google_search": {}}]
-)
+# Versione ultra-compatibile
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -53,21 +50,10 @@ if prompt := st.chat_input("Inserire il messaggio"):
 
     with st.chat_message("assistant"):
         try:
+            # Generazione standard senza strumenti esterni per evitare il crash
             response = model.generate_content(prompt)
-            
-            # Estrazione universale del testo
-            answer = ""
-            if hasattr(response, 'text'):
-                answer = response.text
-            elif response.candidates:
-                parts = response.candidates[0].content.parts
-                answer = "".join([p.text for p in parts if hasattr(p, 'text')])
-            
-            if answer:
-                st.write(answer)
-                st.session_state.messages.append({"role": "assistant", "content": answer})
-            else:
-                st.write("Generazione completata senza output testuale.")
-                
+            if response.text:
+                st.write(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
         except Exception as e:
-            st.error(f"Dettaglio tecnico: {str(e)}")
+            st.error("Errore di risposta. Verifica la chiave API.")
