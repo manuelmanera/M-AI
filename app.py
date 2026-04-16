@@ -33,10 +33,10 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Configurazione completa con Google Search attiva
+# Utilizzo di Gemini 2.0 Flash (il modello più avanzato e compatibile attualmente)
 model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
-    tools=[{"google_search_retrieval": {}}]
+    model_name='gemini-2.0-flash',
+    tools=[{"google_search": {}}]
 )
 
 if "messages" not in st.session_state:
@@ -55,16 +55,19 @@ if prompt := st.chat_input("Inserire il messaggio"):
         try:
             response = model.generate_content(prompt)
             
-            # Gestione avanzata della risposta per modelli con tools attivi
-            if response.candidates and response.candidates[0].content.parts:
-                answer = response.candidates[0].content.parts[0].text
-                if answer:
-                    st.write(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-                else:
-                    st.write("Ricerca completata, ma nessun testo generato.")
+            # Estrazione universale del testo
+            answer = ""
+            if hasattr(response, 'text'):
+                answer = response.text
+            elif response.candidates:
+                parts = response.candidates[0].content.parts
+                answer = "".join([p.text for p in parts if hasattr(p, 'text')])
+            
+            if answer:
+                st.write(answer)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
             else:
-                st.write("L'IA non ha prodotto una risposta testuale.")
+                st.write("Generazione completata senza output testuale.")
                 
         except Exception as e:
-            st.error(f"Errore: {str(e)}")
+            st.error(f"Dettaglio tecnico: {str(e)}")
