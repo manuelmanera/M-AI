@@ -22,7 +22,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel(
     model_name='gemini-2.0-flash',
-    tools=[{"google_search": {}}]
+    tools=['google_search_retrieval']
 )
 
 # Gestione della memoria della conversazione
