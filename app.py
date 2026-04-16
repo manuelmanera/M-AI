@@ -33,6 +33,7 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
+# Configurazione completa con Google Search attiva
 model = genai.GenerativeModel(
     model_name='gemini-1.5-flash',
     tools=[{"google_search_retrieval": {}}]
@@ -54,12 +55,16 @@ if prompt := st.chat_input("Inserire il messaggio"):
         try:
             response = model.generate_content(prompt)
             
-            # Estrazione corretta del testo dalla risposta con strumenti attivi
+            # Gestione avanzata della risposta per modelli con tools attivi
             if response.candidates and response.candidates[0].content.parts:
                 answer = response.candidates[0].content.parts[0].text
-                st.write(answer)
-                st.session_state.messages.append({"role": "assistant", "content": answer})
+                if answer:
+                    st.write(answer)
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                else:
+                    st.write("Ricerca completata, ma nessun testo generato.")
             else:
-                st.write("Nessun testo generato.")
+                st.write("L'IA non ha prodotto una risposta testuale.")
+                
         except Exception as e:
-            st.stop()
+            st.error(f"Errore: {str(e)}")
