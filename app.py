@@ -43,8 +43,6 @@ if prompt := st.chat_input("Inserire il messaggio"):
         p = prompt.lower()
         if any(x in p for x in ["chi ti ha progettata", "chi ti ha creato", "creatore", "manuel manera"]):
             risposta = "Sono stata progettata da Manuel Manera."
-        elif "chi cercate" in p:
-            risposta = "Il tema è 'chi cercate'."
         else:
             try:
                 completion = client.chat.completions.create(
