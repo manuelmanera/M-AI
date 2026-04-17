@@ -19,7 +19,6 @@ st.title("M-AI")
 st.markdown("---")
 
 api_key = st.secrets.get("GROQ_API_KEY")
-
 if not api_key:
     st.error("Configura GROQ_API_KEY nei Secrets.")
     st.stop()
@@ -31,12 +30,7 @@ if "messages" not in st.session_state:
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        if "![Immagine]" in message["content"]:
-            st.markdown(message["content"])
-        elif "<video" in message["content"]:
-            st.html(message["content"])
-        else:
-            st.write(message["content"])
+        st.markdown(message["content"], unsafe_allow_html=True)
 
 if prompt := st.chat_input("Chiedimi una foto, un video o un'info..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -45,27 +39,29 @@ if prompt := st.chat_input("Chiedimi una foto, un video o un'info..."):
 
     with st.chat_message("assistant"):
         p = prompt.lower()
+        risposta = ""
         
-        # LOGICA PERSONALIZZATA MANUEL
         if any(x in p for x in ["creato", "progettato", "manuel"]):
             risposta = "Sono stata progettata da Manuel Manera."
+            st.write(risposta)
         elif "chi cercate" in p:
             risposta = "Il tema è 'chi cercate'."
+            st.write(risposta)
         
-        # GENERAZIONE IMMAGINI
-        elif any(x in p for x in ["genera foto", "fai una foto", "disegna", "immagine di"]):
+        # GENERAZIONE IMMAGINI (FORZATA)
+        elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
             seed = random.randint(0, 99999)
-            prompt_img = prompt.replace(" ", "%20")
-            risposta = f"Ecco l'immagine che hai chiesto:\n\n![Immagine](https://pollinations.ai/p/{prompt_img}?width=1024&height=1024&seed={seed}&nologo=true)"
+            clean_prompt = prompt.replace(" ", "%20")
+            risposta = f"Ecco l'immagine richiesta:\n\n![Immagine](https://pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&nologo=true)"
             st.markdown(risposta)
         
-        # GENERAZIONE VIDEO (ANIMAZIONI)
-        elif any(x in p for x in ["genera video", "fai un video", "video di"]):
-            prompt_vid = prompt.replace(" ", "%20")
-            risposta = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{prompt_vid}?model=video" type="video/mp4"></video>'
+        # GENERAZIONE VIDEO
+        elif "video" in p:
+            clean_prompt = prompt.replace(" ", "%20")
+            risposta = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_prompt}?model=video" type="video/mp4"></video>'
             st.html(risposta)
 
-        # RICERCA WEB E TESTO
+        # RICERCA WEB
         else:
             try:
                 search_results = ""
@@ -76,8 +72,8 @@ if prompt := st.chat_input("Chiedimi una foto, un video o un'info..."):
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": f"Sei un assistente aggiornato. Usa queste info se utili: {search_results}"},
-                        {"role": "user", "content": prompt}
+                        {"role": "system", "content": "Sei un assistente aggiornato. Se non trovi info recenti, usa la tua conoscenza."},
+                        {"role": "user", "content": f"Contesto web: {search_results}\n\nDomanda: {prompt}"}
                     ]
                 )
                 risposta = completion.choices[0].message.content
