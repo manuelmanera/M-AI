@@ -59,9 +59,9 @@ if prompt := st.chat_input("Scrivi qui..."):
     with st.chat_message("assistant"):
         p_lower = prompt.lower()
 
-        if any(x in p_lower for x in ["foto", "immagine", "disegna", "genera", "crea", "picture", "image", "draw"]):
+        if any(keyword in p_lower for keyword in ["foto", "immagine", "disegna", "genera", "crea", "picture", "image", "draw", "ritratto", "illustrazione"]):
             with st.spinner("Sto generando l'immagine..."):
-                image_prompt = prompt.replace("genera", "").replace("disegna", "").replace("foto", "").replace("immagine", "").replace("crea", "").strip()
+                image_prompt = prompt.replace("genera", "").replace("disegna", "").replace("foto", "").replace("immagine", "").replace("crea", "").replace("picture", "").replace("image", "").replace("draw", "").strip()
                 seed = random.randint(1, 999999)
                 img_url = f"https://image.pollinations.ai/p/{image_prompt}?width=1024&height=1024&seed={seed}&model=flux&safe=false"
                 
