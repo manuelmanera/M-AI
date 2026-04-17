@@ -39,8 +39,8 @@ def stream_data(text):
 
 def is_valid_image(url):
     try:
-        response = requests.head(url, timeout=5)
-        if response.status_code == 200 and 'image' in response.headers.get('Content-Type', ''):
+        response = requests.head(url, timeout=10)
+        if response.status_code == 200:
             return True
         return False
     except:
@@ -69,26 +69,32 @@ if prompt := st.chat_input("Scrivi qui..."):
             st.write_stream(stream_data(risposta))
             st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
             
+        elif "chi cercate" in p:
+            risposta = "Il tema è 'chi cercate'."
+            st.write_stream(stream_data(risposta))
+            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
         elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
-            with st.spinner("Generazione immagine in corso..."):
+            with st.spinner("L'intelligenza artificiale sta dipingendo..."):
                 clean_prompt = prompt.replace(" ", "%20")
-                seed = random.randint(1, 100000)
-                img_url = f"https://pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&nologo=true&t={ts}"
+                seed = random.randint(1, 999999)
+                # Nuovo endpoint più stabile (procedura via image-flux)
+                img_url = f"https://image.pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&model=flux"
                 
                 successo = False
-                for _ in range(5):
+                for _ in range(3):
                     if is_valid_image(img_url):
-                        st.image(img_url)
+                        st.image(img_url, use_container_width=True)
                         st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
                         successo = True
                         break
-                    time.sleep(2)
+                    time.sleep(3)
                 
                 if not successo:
-                    risposta = "Il server è sovraccarico. Riprova tra un istante."
-                    st.write_stream(stream_data(risposta))
-                    st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+                    # Fallback su un altro generatore ultra-rapido (via LoremFlickr per test o Unsplash)
+                    fallback_url = f"https://source.unsplash.com/featured/?{clean_prompt}"
+                    st.image(fallback_url, caption="Immagine di archivio (Generazione AI lenta)")
+                    st.session_state.messages.append({"role": "assistant", "content": fallback_url, "type": "image"})
 
         elif "video" in p:
             with st.spinner("Preparazione video..."):
