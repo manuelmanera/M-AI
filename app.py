@@ -1,55 +1,50 @@
 import streamlit as st
 from groq import Groq
+from duckduckgo_search import DDGS
 import random
 import time
+import requests
 
 st.set_page_config(page_title="M-AI", layout="centered")
 
-# --- CSS AVANZATO PER POSIZIONAMENTO FISSO IN BASSO ---
+# --- CSS PER DESIGN GEMINI (BARRA IN BASSO) ---
 st.markdown("""
     <style>
-    /* Nasconde elementi superflui */
+    [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {display: none;}
+    .stChatMessage {background-color: transparent !important; border-bottom: 1px solid #333;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {display: none;}
-
-    /* Crea spazio in fondo alla pagina per non coprire i messaggi */
-    .main .block-container {
-        padding-bottom: 180px;
-    }
-
-    /* Contenitore per la barra di input e il tasto upload */
-    div.stChatInputContainer {
-        padding: 0px;
-    }
-
-    /* Rende il caricatore file compatto e lo allinea */
-    [data-testid="stFileUploader"] {
-        padding: 0;
-        margin-bottom: -50px; /* Allineamento millimetrico con la barra */
-    }
     
-    [data-testid="stFileUploader"] section {
-        padding: 0;
-        min-height: 45px;
-    }
+    /* Spazio per la barra fissa */
+    .main .block-container {padding-bottom: 150px;}
 
-    [data-testid="stFileUploader"] label {
-        display: none;
-    }
-
-    /* Stile per le immagini */
+    /* Rende il caricatore file piccolo e allineato */
+    [data-testid="stFileUploader"] {padding: 0; margin-bottom: -50px;}
+    [data-testid="stFileUploader"] section {padding: 0; min-height: 40px; border: none;}
+    [data-testid="stFileUploader"] label {display: none;}
+    
     img {border-radius: 15px;}
     </style>
     """, unsafe_allow_html=True)
 
 st.title("M-AI")
 
-# --- INIZIALIZZAZIONE SESSIONE ---
+# --- CONNESSIONE API ---
+api_key = st.secrets.get("GROQ_API_KEY")
+if not api_key:
+    st.error("Inserisci GROQ_API_KEY nei Secrets.")
+    st.stop()
+client = Groq(api_key=api_key)
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- VISUALIZZAZIONE MESSAGGI ---
+def stream_data(text):
+    for word in text.split(" "):
+        yield word + " "
+        time.sleep(0.04)
+
+# --- VISUALIZZAZIONE CHAT ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["type"] == "image":
@@ -57,38 +52,59 @@ for message in st.session_state.messages:
         else:
             st.markdown(message["content"])
 
-# --- IL "FOOTER" STILE GEMINI ---
-# Usiamo un contenitore che Streamlit renderizza in fondo
+# --- INPUT AREA (BARRA IN BASSO) ---
 with st.container():
-    # Creiamo due colonne: una piccolissima per il '+' e una grande per il testo
-    col_upload, col_input = st.columns([0.15, 0.85])
-    
-    with col_upload:
-        # Il caricatore file (apparirà come un tasto "+" o "Upload" compatto)
-        uploaded_file = st.file_uploader("+", type=["jpg", "jpeg", "png"], key="gemini_upload")
-    
-    with col_input:
-        # La chat input nativa che Streamlit mette SEMPRE in fondo
+    col_plus, col_txt = st.columns([0.15, 0.85])
+    with col_plus:
+        uploaded_file = st.file_uploader("+", type=["jpg", "png", "jpeg"], key="upload")
+    with col_txt:
         prompt = st.chat_input("Chiedi a M-AI...")
 
-# --- LOGICA DI RISPOSTA ---
+# --- LOGICA DI RISPOSTA REALE ---
 if prompt:
-    # Aggiungi messaggio utente
+    # Aggiunge il messaggio dell'utente alla cronologia
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
-    
-    # Esempio risposta (sostituisci con la tua logica Groq)
-    with st.chat_message("assistant"):
-        if any(x in prompt.lower() for x in ["foto", "genera"]):
-            st.spinner("Generazione...")
-            img_url = f"https://image.pollinations.ai/p/{prompt.lower()}?width=1024&height=1024&seed={random.randint(1,100)}&model=flux"
-            st.image(img_url)
-            st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
-        else:
-            risposta = "Ecco la tua risposta!" # Qui chiameresti Groq
-            st.markdown(risposta)
-            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
-    
-    st.rerun()
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
+    with st.chat_message("assistant"):
+        p_lower = prompt.lower()
+
+        # 1. Generazione Immagini/Video
+        if any(k in p_lower for k in ["foto", "immagine", "disegna", "genera"]):
+            with st.spinner("Sto creando..."):
+                seed = random.randint(1, 999999)
+                img_url = f"https://image.pollinations.ai/p/{p_lower}?width=1024&height=1024&seed={seed}&model=flux"
+                st.image(img_url)
+                st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
+
+        # 2. Risposta Testuale Reale con Groq
+        else:
+            try:
+                # Ricerca web opzionale
+                search_context = ""
+                with DDGS() as ddgs:
+                    for r in ddgs.text(prompt, max_results=2):
+                        search_context += f"\n- {r['body']}"
+
+                # Chiamata a Llama tramite Groq
+                completion = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[
+                        {"role": "system", "content": "Sei M-AI, un assistente utile creato da Manuel Manera. Rispondi in italiano."},
+                        {"role": "user", "content": f"Contesto web: {search_context}\n\nDomanda: {prompt}"}
+                    ],
+                    temperature=0.7
+                )
+                
+                risposta = completion.choices[0].message.content
+                # Visualizzazione con effetto scrittura
+                st.write_stream(stream_data(risposta))
+                st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+
+            except Exception as e:
+                st.error(f"Errore: {e}")
+
+# Se carichi un file, avvisa l'utente
 if uploaded_file:
-    st.sidebar.image(uploaded_file, caption="Immagine pronta per l'uso")
+    st.toast(f"Immagine ricevuta: {uploaded_file.name}")
