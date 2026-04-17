@@ -1,11 +1,7 @@
 import streamlit as st
+from groq import Groq
+from duckduckgo_search import DDGS
 import os
-
-try:
-    from groq import Groq
-except ImportError:
-    st.error("Libreria 'groq' non trovata. Esegui il Reboot dell'app.")
-    st.stop()
 
 st.set_page_config(page_title="M-AI", layout="centered")
 
@@ -36,7 +32,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-if prompt := st.chat_input("Scrivi qui..."):
+if prompt := st.chat_input("Chiedimi qualsiasi cosa..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
@@ -49,13 +45,21 @@ if prompt := st.chat_input("Scrivi qui..."):
             risposta = "Il tema è 'chi cercate'."
         else:
             try:
-                chat_completion = client.chat.completions.create(
+                with DDGS() as ddgs:
+                    results = [r for r in ddgs.text(prompt, max_results=3)]
+                
+                context = "\n".join([f"- {res['body']}" for res in results])
+                
+                completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[
+                        {"role": "system", "content": f"Sei un assistente aggiornato. Usa queste info se utili: {context}"},
+                        {"role": "user", "content": prompt}
+                    ]
                 )
-                risposta = chat_completion.choices[0].message.content
+                risposta = completion.choices[0].message.content
             except Exception as e:
-                risposta = f"Errore: {e}"
+                risposta = f"Errore ricerca: {e}"
         
         st.write(risposta)
         st.session_state.messages.append({"role": "assistant", "content": risposta})
