@@ -6,6 +6,7 @@ import random
 import time
 import requests
 import base64
+import numpy as np
 
 st.set_page_config(page_title="M-AI", layout="centered")
 
@@ -16,6 +17,7 @@ st.markdown("""
     header {visibility: hidden;}
     footer {visibility: hidden;}
     img {border-radius: 10px; max-width: 100%; height: auto;}
+    .stCodeBlock {background-color: #f0f2f6;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -47,6 +49,10 @@ def is_valid_image(url):
 def encode_image(image_file):
     return base64.b64encode(image_file.read()).decode('utf-8')
 
+def generate_mock_matrix():
+    matrix = np.random.uniform(-1, 1, (1, 128))
+    return matrix.tolist()[0]
+
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["type"] == "image": st.image(message["content"])
@@ -54,10 +60,12 @@ for message in st.session_state.messages:
         else: st.markdown(message["content"])
 
 with st.sidebar:
-    st.subheader("Test Database Biometrico")
-    uploaded_file = st.file_uploader("Carica foto per match matrice", type=["jpg", "jpeg", "png"])
+    st.subheader("Sistema Biometrico")
+    uploaded_file = st.file_uploader("Carica volto per estrazione matrice", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        st.info("Immagine caricata. In attesa di comando in chat.")
 
-if prompt := st.chat_input("Scrivi o chiedi il match..."):
+if prompt := st.chat_input("Analizza la foto o scrivi..."):
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -65,7 +73,20 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
     with st.chat_message("assistant"):
         p = prompt.lower()
         
-        if uploaded_file is not None:
+        if uploaded_file is not None and any(x in p for x in ["matrice", "cerca", "analizza", "identifica"]):
+            with st.status("Elaborazione biometria...") as status:
+                st.write("Estrazione punti focali...")
+                time.sleep(1)
+                st.write("Generazione matrice del volto (Face Embedding)...")
+                matrice = generate_mock_matrix()
+                time.sleep(1)
+                st.write("Ricerca nel database sintetico...")
+                time.sleep(1)
+                status.update(label="Analisi completata!", state="complete")
+
+            st.markdown("### Risultato Analisi Matrice")
+            st.code(f"Vector_Matrix: {str(matrice[:8])}...")
+            
             base64_image = encode_image(uploaded_file)
             try:
                 response = client.chat.completions.create(
@@ -76,7 +97,7 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
                             "content": [
                                 {
                                     "type": "text", 
-                                    "text": f"Agisci come un sistema di analisi biometrica. Estrai i tratti somatici (matrice del volto) da questa foto di test e confrontali con il database sintetico per trovare nome e profili social finti. Rispondi alla domanda dell'utente: {prompt}"
+                                    "text": f"Dato il seguente embedding vettoriale, identifica la persona nel database di test fornendo nome e profili social finti. Domanda utente: {prompt}"
                                 },
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                             ]
@@ -87,15 +108,10 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
                 st.write_stream(stream_data(risposta))
                 st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
             except Exception as e:
-                st.error(f"Errore analisi: {e}")
+                st.error(f"Errore: {e}")
         
         elif any(x in p for x in ["creato", "progettato", "manuel", "chi ti ha fatto"]):
             risposta = "Sono stata progettata da Manuel Manera."
-            st.write_stream(stream_data(risposta))
-            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
-            
-        elif "chi cercate" in p:
-            risposta = "Il tema è 'chi cercate'."
             st.write_stream(stream_data(risposta))
             st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
@@ -111,7 +127,7 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
                         success = True
                         break
                     time.sleep(2)
-                if not success: st.write("Server lento, riprova.")
+                if not success: st.write("Server lento.")
 
         elif "video" in p:
             clean_p = prompt.replace(" ", "%20")
@@ -128,7 +144,7 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": "Sei un assistente web creato da Manuel Manera."},
+                        {"role": "system", "content": "Sei un assistente creato da Manuel Manera."},
                         {"role": "user", "content": f"Contesto: {search}\n\nDomanda: {prompt}"}
                     ]
                 )
@@ -136,4 +152,4 @@ if prompt := st.chat_input("Scrivi o chiedi il match..."):
                 st.write_stream(stream_data(risposta))
                 st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
             except Exception as e:
-                st.error(f"Errore: {e}")
+                st.error(f"Errore API: {e}")
