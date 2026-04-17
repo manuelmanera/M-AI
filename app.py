@@ -30,38 +30,44 @@ if "messages" not in st.session_state:
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"], unsafe_allow_html=True)
+        if message["type"] == "image":
+            st.image(message["content"])
+        elif message["type"] == "video":
+            st.html(message["content"])
+        else:
+            st.markdown(message["content"])
 
 if prompt := st.chat_input("Chiedimi una foto, un video o un'info..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
     with st.chat_message("user"):
-        st.write(prompt)
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
         p = prompt.lower()
-        risposta = ""
         
         if any(x in p for x in ["creato", "progettato", "manuel"]):
             risposta = "Sono stata progettata da Manuel Manera."
-            st.write(risposta)
+            st.markdown(risposta)
+            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+            
         elif "chi cercate" in p:
             risposta = "Il tema è 'chi cercate'."
-            st.write(risposta)
-        
-        # GENERAZIONE IMMAGINI (FORZATA)
+            st.markdown(risposta)
+            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+
         elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
             seed = random.randint(0, 99999)
             clean_prompt = prompt.replace(" ", "%20")
-            risposta = f"Ecco l'immagine richiesta:\n\n![Immagine](https://pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&nologo=true)"
-            st.markdown(risposta)
-        
-        # GENERAZIONE VIDEO
+            img_url = f"https://pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&nologo=true"
+            st.image(img_url)
+            st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
+
         elif "video" in p:
             clean_prompt = prompt.replace(" ", "%20")
-            risposta = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_prompt}?model=video" type="video/mp4"></video>'
-            st.html(risposta)
+            video_html = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_prompt}?model=video" type="video/mp4"></video>'
+            st.html(video_html)
+            st.session_state.messages.append({"role": "assistant", "content": video_html, "type": "video"})
 
-        # RICERCA WEB
         else:
             try:
                 search_results = ""
@@ -72,14 +78,12 @@ if prompt := st.chat_input("Chiedimi una foto, un video o un'info..."):
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": "Sei un assistente aggiornato. Se non trovi info recenti, usa la tua conoscenza."},
+                        {"role": "system", "content": "Sei un assistente aggiornato con accesso al web."},
                         {"role": "user", "content": f"Contesto web: {search_results}\n\nDomanda: {prompt}"}
                     ]
                 )
                 risposta = completion.choices[0].message.content
-                st.write(risposta)
+                st.markdown(risposta)
+                st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
             except Exception as e:
-                risposta = f"Errore: {e}"
-                st.write(risposta)
-        
-        st.session_state.messages.append({"role": "assistant", "content": risposta})
+                st.error(f"Errore: {e}")
