@@ -7,48 +7,49 @@ import requests
 
 st.set_page_config(page_title="M-AI", layout="centered")
 
-# CSS personalizzato per integrare il caricamento e pulire l'interfaccia
+# --- CSS PER INTERFACCIA STILE GEMINI ---
 st.markdown("""
     <style>
+    /* Nasconde header e icone standard */
     [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {display: none;}
-    .stChatMessage {background-color: transparent !important; border-bottom: 1px solid #f0f0f0;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
-    img {border-radius: 10px; max-width: 100%; height: auto;}
     
-    /* Stile per compattare il caricatore file */
-    .stFileUploader section {padding: 0; min-height: 0;}
-    .stFileUploader label {display: none;}
+    /* Spazio per non far coprire i messaggi dal footer fisso */
+    .main .block-container {
+        padding-bottom: 150px;
+    }
+
+    /* Stile per il contenitore di input fisso in basso */
+    .stChatInputContainer {
+        padding-bottom: 20px;
+    }
+    
+    /* Rende il caricatore file più simile a un tasto '+' */
+    .stFileUploader section {
+        padding: 0;
+        min-height: 0;
+        border: none;
+    }
+    .stFileUploader label {
+        display: none;
+    }
+    
+    /* Arrotondamento immagini */
+    img {border-radius: 15px;}
     </style>
     """, unsafe_allow_html=True)
 
 st.title("M-AI")
-st.markdown("---")
 
-# --- LOGICA API ---
+# --- INIZIALIZZAZIONE ---
 api_key = st.secrets.get("GROQ_API_KEY")
-if not api_key:
-    st.error("ERRORE: Inserisci la chiave GROQ_API_KEY nei Secrets.")
-    st.stop()
-
-client = Groq(api_key=api_key)
+client = Groq(api_key=api_key) if api_key else None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-def stream_data(text):
-    for word in text.split(" "):
-        yield word + " "
-        time.sleep(0.04)
-
-def is_valid_image(url):
-    try:
-        response = requests.head(url, timeout=5)
-        return response.status_code == 200
-    except:
-        return False
-
-# Visualizzazione Cronologia
+# --- VISUALIZZAZIONE CRONOLOGIA ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         if message["type"] == "image":
@@ -58,74 +59,54 @@ for message in st.session_state.messages:
         else:
             st.markdown(message["content"])
 
-# --- INPUT AREA (IL "PULSANTE INCORPORATO") ---
-# Creiamo una colonna stretta per l'upload e una larga per il testo
-input_col, upload_col = st.columns([0.85, 0.15])
+# --- ZONA INPUT IN BASSO (STRUTTURA GEMINI) ---
+# Usiamo un container fisso o posizionato in fondo
+with st.container():
+    # Creiamo una riga per simulare i tasti a sinistra e la barra di testo
+    col_plus, col_text = st.columns([0.1, 0.9])
+    
+    with col_plus:
+        # Il tasto "+" per caricare i file
+        uploaded_file = st.file_uploader("+", type=["jpg", "jpeg", "png"], key="upload_gemini")
+    
+    with col_text:
+        # La barra di testo principale
+        prompt = st.chat_input("Chiedi a M-AI...")
 
-with upload_col:
-    # Il caricatore file appare come un piccolo tasto "+" grazie al CSS
-    uploaded_file = st.file_uploader("📎", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
-
-with input_col:
-    prompt = st.chat_input("Scrivi qui o genera qualcosa...")
-
-# --- LOGICA DI ELABORAZIONE ---
+# --- LOGICA DI RISPOSTA ---
 if prompt:
-    # Se c'è un file caricato, lo aggiungiamo al contesto della generazione
-    if uploaded_file:
-        full_prompt = f"{prompt} (riferimento: {uploaded_file.name})"
-    else:
-        full_prompt = prompt
+    # Mostra messaggio utente
+    st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
+    st.rerun() # Forza il refresh per mostrare il messaggio subito
 
-    st.session_state.messages.append({"role": "user", "content": full_prompt, "type": "text"})
-    with st.chat_message("user"):
-        st.markdown(full_prompt)
-
+# Se l'ultimo messaggio è dell'utente, genera risposta
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    last_prompt = st.session_state.messages[-1]["content"]
+    
     with st.chat_message("assistant"):
-        p_lower = prompt.lower()
-
-        # Caso Immagini/Video
-        if any(keyword in p_lower for keyword in ["foto", "immagine", "disegna", "genera", "video"]):
-            with st.spinner("Creazione in corso..."):
-                if "video" in p_lower:
-                    clean_p = prompt.replace("video", "").strip().replace(" ", "%20")
-                    content_html = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video>'
-                    st.html(content_html)
-                    st.session_state.messages.append({"role": "assistant", "content": content_html, "type": "video"})
-                else:
-                    image_prompt = p_lower.replace("genera", "").replace("foto", "").strip()
-                    # Se c'è un file, pollinations può usare il nome come seed/riferimento testuale
-                    seed = random.randint(1, 999999)
-                    img_url = f"https://image.pollinations.ai/p/{image_prompt}?width=1024&height=1024&seed={seed}&model=flux"
-                    
-                    if is_valid_image(img_url):
-                        st.image(img_url, use_column_width=True)
-                        st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
-
-        # Caso Testo (Chat standard)
+        p_lower = last_prompt.lower()
+        
+        # Logica Generativa (Immagini/Video)
+        if any(kw in p_lower for kw in ["foto", "immagine", "disegna", "genera"]):
+            with st.spinner("Sto creando..."):
+                seed = random.randint(1, 999999)
+                clean_prompt = p_lower.replace("genera", "").strip()
+                img_url = f"https://image.pollinations.ai/p/{clean_prompt}?width=1024&height=1024&seed={seed}&model=flux"
+                st.image(img_url)
+                st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
+        
+        # Logica Testuale
         else:
-            try:
-                search = ""
-                with DDGS() as ddgs:
-                    for r in ddgs.text(prompt, max_results=2):
-                        search += f"\n- {r['body']}"
-
+            if client:
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": "Sei M-AI, assistente creato da Manuel Manera. Sii diretto."},
-                        {"role": "user", "content": f"Contesto: {search}\n\nDomanda: {prompt}"}
-                    ],
-                    temperature=0.8
+                    messages=[{"role": "system", "content": "Sei M-AI. Rispondi in modo conciso."},
+                              {"role": "user", "content": last_prompt}]
                 )
-                
                 risposta = completion.choices[0].message.content
-                st.write_stream(stream_data(risposta))
+                st.markdown(risposta)
                 st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
-            except Exception as e:
-                st.error(f"Errore: {e}")
-
-# Anteprima file caricato (opzionale, sotto la barra)
+# Toast di conferma per file caricato
 if uploaded_file:
-    st.toast(f"File pronto: {uploaded_file.name}")
+    st.toast(f"Immagine caricata: {uploaded_file.name}", icon="🖼️")
