@@ -57,7 +57,6 @@ if prompt := st.chat_input("Scrivi qui..."):
     with st.chat_message("assistant"):
         p = prompt.lower()
         
-        # --- LOGICA PERSONALIZZATA MANUEL (PRIORITÀ MASSIMA) ---
         if any(x in p for x in ["creato", "progettato", "manuel", "chi ti ha fatto"]):
             risposta = "Sono stata progettata da Manuel Manera."
             st.write_stream(stream_data(risposta))
@@ -68,7 +67,6 @@ if prompt := st.chat_input("Scrivi qui..."):
             st.write_stream(stream_data(risposta))
             st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
-        # --- GENERAZIONE IMMAGINI ---
         elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
             with st.spinner("Sto dipingendo..."):
                 clean_p = prompt.replace(" ", "%20")
@@ -84,14 +82,12 @@ if prompt := st.chat_input("Scrivi qui..."):
                 if not success:
                     st.write("Il server immagini è lento, riprova tra un istante.")
 
-        # --- GENERAZIONE VIDEO ---
         elif "video" in p:
             clean_p = prompt.replace(" ", "%20")
             video_html = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video>'
             st.html(video_html)
             st.session_state.messages.append({"role": "assistant", "content": video_html, "type": "video"})
 
-        # --- RICERCA WEB E RISPOSTE GENERALI ---
         else:
             try:
                 search = ""
