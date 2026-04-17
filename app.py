@@ -1,103 +1,139 @@
 import streamlit as st
-from groq import Groq
-from duckduckgo_search import DDGS
-import os
-import random
-import time
-import requests
-import base64
 import numpy as np
+from PIL import Image
+import os
+import json
+import insightface
+from insightface.app import FaceAnalysis
+import pickle
+from sklearn.metrics.pairwise import cosine_similarity
+import cv2
 
-st.set_page_config(page_title="M-AI", layout="centered")
+st.set_page_config(page_title="FaceMatrix - Riconoscimento Volti Locale", layout="wide")
+st.title("🧬 FaceMatrix")
+st.markdown("**Software locale per estrazione matrice volto + ricerca nel tuo database**")
 
-st.markdown("""
-    <style>
-    [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {display: none;}
-    .stChatMessage {background-color: transparent !important; border-bottom: 1px solid #f0f0f0;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    img {border-radius: 10px; max-width: 100%; height: auto;}
-    .stCodeBlock {background-color: #f0f2f6;}
-    </style>
-    """, unsafe_allow_html=True)
+# ====================== INIZIALIZZAZIONE ======================
+if "face_app" not in st.session_state:
+    with st.spinner("Caricamento modello InsightFace (prima volta può richiedere 10-20 secondi)..."):
+        st.session_state.face_app = FaceAnalysis(name="buffalo_l", providers=['CPUExecutionProvider'])
+        st.session_state.face_app.prepare(ctx_id=0, det_size=(640, 640))
 
-st.title("M-AI")
-st.markdown("---")
+if "database" not in st.session_state:
+    st.session_state.database = []  # lista di dict: {"name": , "embedding": , "filename": }
 
-api_key = st.secrets.get("GROQ_API_KEY")
-if not api_key:
-    st.error("ERRORE: Inserisci la chiave GROQ_API_KEY nei Secrets.")
-    st.stop()
+DB_FOLDER = "database_volti"
+os.makedirs(DB_FOLDER, exist_ok=True)
 
-client = Groq(api_key=api_key)
+# Carica database esistente
+if os.path.exists("database.pkl"):
+    with open("database.pkl", "rb") as f:
+        st.session_state.database = pickle.load(f)
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# ====================== SIDEBAR ======================
+st.sidebar.header("Menu")
+pagina = st.sidebar.radio("Scegli funzione", ["📸 Aggiungi al Database", "🔍 Riconosci Volto", "📊 Visualizza Database"])
 
-def stream_data(text):
-    for word in text.split(" "):
-        yield word + " "
-        time.sleep(0.04)
+# ====================== FUNZIONE ESTRAZIONE EMBEDDING ======================
+def get_embedding(image):
+    img = np.array(image)
+    faces = st.session_state.face_app.get(img)
+    if len(faces) == 0:
+        return None
+    # Prendiamo il volto con la confidenza più alta
+    face = max(faces, key=lambda x: x.det_score)
+    return face.embedding  # vettore 512 dimensioni
 
-def is_valid_image(url):
-    try:
-        response = requests.head(url, timeout=5)
-        return response.status_code == 200
-    except:
-        return False
+# ====================== PAGINA 1: AGGIUNGI AL DATABASE ======================
+if pagina == "📸 Aggiungi al Database":
+    st.header("Aggiungi una persona al database")
+    nome = st.text_input("Nome e Cognome")
+    uploaded = st.file_uploader("Carica foto del volto (fronte, buona luce)", type=["jpg", "jpeg", "png"])
 
-def encode_image(image_file):
-    return base64.b64encode(image_file.read()).decode('utf-8')
+    if uploaded and nome:
+        image = Image.open(uploaded).convert("RGB")
+        st.image(image, caption="Foto caricata", use_column_width=True)
 
-def generate_mock_matrix():
-    matrix = np.random.uniform(-1, 1, (1, 128))
-    return matrix.tolist()[0]
+        if st.button("💾 Salva nel Database"):
+            embedding = get_embedding(image)
+            if embedding is None:
+                st.error("❌ Nessun volto rilevato nella foto")
+            else:
+                filename = f"{nome.replace(' ', '_')}_{len(st.session_state.database)}.npy"
+                np.save(os.path.join(DB_FOLDER, filename), embedding)
+                
+                st.session_state.database.append({
+                    "name": nome,
+                    "embedding": embedding,
+                    "filename": filename
+                })
+                
+                # Salva database
+                with open("database.pkl", "wb") as f:
+                    pickle.dump(st.session_state.database, f)
+                
+                st.success(f"✅ {nome} aggiunto al database!")
+                st.rerun()
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        if message["type"] == "image": st.image(message["content"])
-        elif message["type"] == "video": st.html(message["content"])
-        else: st.markdown(message["content"])
+# ====================== PAGINA 2: RICONOSCI VOLTO ======================
+elif pagina == "🔍 Riconosci Volto":
+    st.header("Riconoscimento volto")
+    uploaded = st.file_uploader("Carica la foto da analizzare", type=["jpg", "jpeg", "png"])
 
-with st.sidebar:
-    st.subheader("Sistema Biometrico")
-    uploaded_file = st.file_uploader("Carica volto per estrazione matrice", type=["jpg", "jpeg", "png"])
-    if uploaded_file:
-        st.info("Immagine caricata. In attesa di comando in chat.")
+    if uploaded:
+        image = Image.open(uploaded).convert("RGB")
+        st.image(image, caption="Foto da analizzare", use_column_width=True)
 
-if prompt := st.chat_input("Analizza la foto o scrivi..."):
-    st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+        if st.button("🔍 Analizza e confronta con il database"):
+            with st.spinner("Estrazione matrice volto e confronto..."):
+                embedding_query = get_embedding(image)
+                
+                if embedding_query is None:
+                    st.error("❌ Nessun volto rilevato")
+                else:
+                    st.success("✅ Volto rilevato - Matrice 512 dimensioni generata")
+                    
+                    # Mostra estratto matrice
+                    st.write("**Estratto della matrice (primi 20 valori)**")
+                    st.code(embedding_query[:20])
 
-    with st.chat_message("assistant"):
-        p = prompt.lower()
-        
-        if uploaded_file is not None and any(x in p for x in ["matrice", "cerca", "analizza", "identifica"]):
-            with st.status("Elaborazione biometria...") as status:
-                st.write("Estrazione punti focali...")
-                time.sleep(1)
-                st.write("Generazione matrice del volto (Face Embedding)...")
-                matrice = generate_mock_matrix()
-                time.sleep(1)
-                st.write("Ricerca nel database sintetico...")
-                time.sleep(1)
-                status.update(label="Analisi completata!", state="complete")
+                    if len(st.session_state.database) == 0:
+                        st.warning("Il database è vuoto. Aggiungi prima delle foto!")
+                    else:
+                        similarities = []
+                        for entry in st.session_state.database:
+                            sim = cosine_similarity([embedding_query], [entry["embedding"]])[0][0]
+                            similarities.append((entry["name"], sim * 100))
+                        
+                        # Ordina per somiglianza
+                        similarities.sort(key=lambda x: x[1], reverse=True)
+                        
+                        st.subheader("Risultati di corrispondenza")
+                        for name, score in similarities[:10]:
+                            color = "🟢" if score > 70 else "🟡" if score > 50 else "🔴"
+                            st.write(f"{color} **{name}** → **{score:.2f}%** di somiglianza")
 
-            st.markdown("### Risultato Analisi Matrice")
-            st.code(f"Vector_Matrix: {str(matrice[:8])}...")
-            
-            base64_image = encode_image(uploaded_file)
-            try:
-                response = client.chat.completions.create(
-                    model="llama-3.2-11b-vision-preview",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text", 
-                                    "text": f"Dato il seguente embedding vettoriale, identifica la persona nel database di test fornendo nome e profili social finti. Domanda utente: {prompt}"
+# ====================== PAGINA 3: VISUALIZZA DATABASE ======================
+elif pagina == "📊 Visualizza Database":
+    st.header(f"Database attuale: {len(st.session_state.database)} volti")
+    
+    if st.session_state.database:
+        for i, entry in enumerate(st.session_state.database):
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                st.write(f"**{entry['name']}**")
+            with col2:
+                if st.button("Elimina", key=i):
+                    # Elimina file e dal database
+                    os.remove(os.path.join(DB_FOLDER, entry['filename']))
+                    st.session_state.database.pop(i)
+                    with open("database.pkl", "wb") as f:
+                        pickle.dump(st.session_state.database, f)
+                    st.rerun()
+    else:
+        st.info("Database vuoto. Aggiungi volti dalla prima pagina.")
+
+st.caption("FaceMatrix v1.0 - Tutto in locale • Progetto scolastico Cybersecurity")                                    "text": f"Dato il seguente embedding vettoriale, identifica la persona nel database di test fornendo nome e profili social finti. Domanda utente: {prompt}"
                                 },
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                             ]
