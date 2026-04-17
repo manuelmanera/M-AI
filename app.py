@@ -1,5 +1,5 @@
 import streamlit as st
-from groq import Groq
+from Groq import Groq
 import os
 
 st.set_page_config(page_title="M-AI", layout="centered")
