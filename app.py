@@ -115,7 +115,6 @@ Sii naturale e conversazionale."""
             except Exception as e:
                 st.error(f"Errore: {e}")
 
-# ====================== NUOVA FUNZIONE: UPLOAD FOTO PER TROVARE PROFILI SOCIAL ======================
 uploaded_file = st.file_uploader("Carica una foto di una persona per cercare nome, cognome e profili social", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -127,7 +126,6 @@ if uploaded_file is not None:
     with st.chat_message("assistant"):
         with st.spinner("Analizzo la foto e cerco informazioni sulla persona..."):
             try:
-                # Converti immagine in base64
                 image_bytes = uploaded_file.read()
                 base64_image = base64.b64encode(image_bytes).decode('utf-8')
                 
@@ -141,7 +139,7 @@ if uploaded_file is not None:
                 Sii diretto e fornisci tutti i dettagli che riesci a trovare o dedurre."""
 
                 completion = client.chat.completions.create(
-                    model="llama-3.2-11b-vision-preview",   # modello vision di Groq
+                    model="llama-3.2-11b-vision-preview",
                     messages=[
                         {
                             "role": "user",
@@ -166,19 +164,3 @@ if uploaded_file is not None:
                 
             except Exception as e:
                 st.error(f"Errore durante l'analisi della foto: {e}")
-                st.info("Assicurati di avere il modello vision disponibile su Groq e che la foto sia chiara.")                completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Contesto: {search}\n\nDomanda: {prompt}"}
-                    ],
-                    temperature=0.8,
-                    max_tokens=1024
-                )
-                
-                risposta = completion.choices[0].message.content
-                st.write_stream(stream_data(risposta))
-                st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
-
-            except Exception as e:
-                st.error(f"Errore: {e}")
