@@ -21,7 +21,6 @@ st.markdown("""
 st.title("M-AI")
 st.markdown("---")
 
-# Recupero chiave corretta
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
     st.error("ERRORE: Inserisci la chiave GROQ_API_KEY nei Secrets di Streamlit.")
@@ -50,7 +49,7 @@ for message in st.session_state.messages:
         elif message["type"] == "video": st.html(message["content"])
         else: st.markdown(message["content"])
 
-if prompt := st.chat_input("Chiedimi una foto o un'info..."):
+if prompt := st.chat_input("Scrivi qui..."):
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -58,11 +57,22 @@ if prompt := st.chat_input("Chiedimi una foto o un'info..."):
     with st.chat_message("assistant"):
         p = prompt.lower()
         
-        if any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
+        # --- LOGICA PERSONALIZZATA MANUEL (PRIORITÀ MASSIMA) ---
+        if any(x in p for x in ["creato", "progettato", "manuel", "chi ti ha fatto"]):
+            risposta = "Sono stata progettata da Manuel Manera."
+            st.write_stream(stream_data(risposta))
+            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+            
+        elif "chi cercate" in p:
+            risposta = "Il tema è 'chi cercate'."
+            st.write_stream(stream_data(risposta))
+            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
+
+        # --- GENERAZIONE IMMAGINI ---
+        elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
             with st.spinner("Sto dipingendo..."):
                 clean_p = prompt.replace(" ", "%20")
                 img_url = f"https://image.pollinations.ai/p/{clean_p}?width=1024&height=1024&seed={random.randint(1,99999)}&model=flux"
-                
                 success = False
                 for _ in range(5):
                     if is_valid_image(img_url):
@@ -71,27 +81,27 @@ if prompt := st.chat_input("Chiedimi una foto o un'info..."):
                         success = True
                         break
                     time.sleep(2)
-                
                 if not success:
-                    st.write("Il server immagini è lento, riprova tra un attimo.")
+                    st.write("Il server immagini è lento, riprova tra un istante.")
 
+        # --- GENERAZIONE VIDEO ---
         elif "video" in p:
             clean_p = prompt.replace(" ", "%20")
             video_html = f'<video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video>'
             st.html(video_html)
             st.session_state.messages.append({"role": "assistant", "content": video_html, "type": "video"})
 
+        # --- RICERCA WEB E RISPOSTE GENERALI ---
         else:
             try:
                 search = ""
                 with DDGS() as ddgs:
                     for r in ddgs.text(prompt, max_results=3): search += f"\n- {r['body']}"
                 
-                # MODELLO AGGIORNATO QUI
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
-                        {"role": "system", "content": "Sei un assistente web."},
+                        {"role": "system", "content": "Sei un assistente web creato da Manuel Manera."},
                         {"role": "user", "content": f"Contesto: {search}\n\nDomanda: {prompt}"}
                     ]
                 )
@@ -99,4 +109,4 @@ if prompt := st.chat_input("Chiedimi una foto o un'info..."):
                 st.write_stream(stream_data(risposta))
                 st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
             except Exception as e:
-                st.error(f"Errore API: {e}")
+                st.error(f"Errore: {e}")
