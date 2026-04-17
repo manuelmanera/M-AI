@@ -139,7 +139,7 @@ if uploaded_file is not None:
                 Sii diretto e fornisci tutti i dettagli che riesci a trovare o dedurre."""
 
                 completion = client.chat.completions.create(
-                    model="llama-3.2-11b-vision-preview",
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
                     messages=[
                         {
                             "role": "user",
