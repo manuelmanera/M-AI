@@ -66,21 +66,27 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
+    /* Stile per le etichette dei nomi esterne e piccole */
+    .chat-role-label {
+        font-size: 0.85rem !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+        margin-left: 8px;
+    }
+
+    /* Il contenitore con bordo arcobaleno avvolge SOLO il testo della chat */
     .card-container {
         position: relative;
         padding: 3px;
-        border-radius: 24px;
+        border-radius: 20px;
         background: conic-gradient(from 45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3), var(--gradient-1));
         animation: hue-shift 8s linear infinite;
         width: 100%;
-        margin-bottom: 20px;
-        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2), 0 5px 15px -5px rgba(0, 0, 0, 0.1);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .card-container {
-            box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.6), 0 5px 15px -5px rgba(0, 0, 0, 0.4);
-        }
+        margin-bottom: 25px;
+        box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.15);
     }
 
     @keyframes hue-shift {
@@ -94,8 +100,8 @@ st.markdown("""
         background: var(--card-bg);
         backdrop-filter: blur(25px);
         -webkit-backdrop-filter: blur(25px);
-        border-radius: 21px;
-        padding: 24px;
+        border-radius: 17px;
+        padding: 18px 24px;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
     }
 
@@ -115,8 +121,7 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    h2 { font-size: 1.5rem !important; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
-    p { color: var(--text-secondary) !important; font-size: 1.05rem; margin-bottom: 0px; }
+    p { color: var(--text-main) !important; font-size: 1.05rem; margin-bottom: 0px; }
 
     [data-testid="stChatInput"] {
         background-color: var(--card-bg) !important;
@@ -175,13 +180,14 @@ def generate_mock_matrix():
     matrix = np.random.uniform(-1, 1, (1, 128))
     return matrix.tolist()[0]
 
+# Renderizzazione della cronologia passata
 for message in st.session_state.messages:
     role_title = "Tu" if message["role"] == "user" else "M-AI"
     
+    st.markdown(f'<div class="chat-role-label">{role_title}</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="card-container">
         <div class="card">
-            <h2>{role_title}</h2>
             <div id="content-anchor">
     """, unsafe_allow_html=True)
     
@@ -200,10 +206,12 @@ with st.sidebar:
 
 if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
+    
+    # Messaggio Utente (Nome fuori, testo dentro il box)
+    st.markdown('<div class="chat-role-label">Tu</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="card-container">
         <div class="card">
-            <h2>Tu</h2>
             <p>{prompt}</p>
         </div>
     </div>
@@ -211,17 +219,18 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
 
     p = prompt.lower()
     
+    # Risposta Assistente (Nome fuori, testo dentro il box)
+    st.markdown('<div class="chat-role-label">M-AI</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="card-container">
         <div class="card">
-            <h2>M-AI</h2>
     """, unsafe_allow_html=True)
     
     if uploaded_file is not None and any(x in p for x in ["matrice", "cerca", "analizza", "identifica"]):
         matrice = generate_mock_matrix()
         st.markdown(f"""
         <div class="visual-box" style="margin-bottom:15px;">
-            <p style="font-size:0.85rem; font-family:monospace; word-break:break-all;">Vector_Matrix: {str(matrice[:6])}...</p>
+            <p style="font-size:0.85rem; font-family:monospace; word-break:break-all; color:var(--text-secondary) !important;">Vector_Matrix: {str(matrice[:6])}...</p>
         </div>
         """, unsafe_allow_html=True)
         
