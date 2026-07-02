@@ -8,7 +8,7 @@ import requests
 import base64
 import numpy as np
 
-st.set_page_config(page_title="M-BR0WS3R | AI Architecture", layout="wide")
+st.set_page_config(page_title="M-AI | AI Architecture", layout="wide")
 
 st.markdown("""
     <style>
@@ -31,12 +31,11 @@ st.markdown("""
         }
     }
 
-    /* Reset e Body Identici */
     [data-testid="stAppViewContainer"] {
         background-color: var(--bg-color) !important;
         color: var(--text-main) !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-        line-height: 1.5;
+        line-height: 1.4;
     }
 
     [data-testid="stHeader"], [data-testid="stFooterBlock"] {
@@ -45,15 +44,14 @@ st.markdown("""
 
     .block-container {
         padding-top: 2rem !important;
-        max-width: 900px !important;
+        max-width: 700px !important;
     }
 
-    /* Elementi HTML Originali */
     .brand-title {
-        font-size: 4rem !important;
+        font-size: 3rem !important;
         font-weight: 800 !important;
-        letter-spacing: -2px !important;
-        margin-bottom: 10px !important;
+        letter-spacing: -1.5px !important;
+        margin-bottom: 5px !important;
         text-align: center;
         background: linear-gradient(90deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
         -webkit-background-clip: text;
@@ -63,26 +61,25 @@ st.markdown("""
 
     .brand-subtitle {
         color: var(--text-secondary);
-        font-size: 1.25rem;
+        font-size: 1.1rem;
         text-align: center;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
     }
 
-    /* Container 3D Perspective & Card Concept */
     .card-container {
         position: relative;
-        padding: 4px;
-        border-radius: 40px;
+        padding: 3px;
+        border-radius: 24px;
         background: conic-gradient(from 45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3), var(--gradient-1));
         animation: hue-shift 8s linear infinite;
         width: 100%;
-        margin-bottom: 35px;
-        box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.28), 0 10px 25px -12px rgba(0, 0, 0, 0.18);
+        margin-bottom: 20px;
+        box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2), 0 5px 15px -5px rgba(0, 0, 0, 0.1);
     }
 
     @media (prefers-color-scheme: dark) {
         .card-container {
-            box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.7), 0 10px 25px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.6), 0 5px 15px -5px rgba(0, 0, 0, 0.4);
         }
     }
 
@@ -95,10 +92,10 @@ st.markdown("""
         position: relative;
         z-index: 1;
         background: var(--card-bg);
-        backdrop-filter: blur(30px);
-        -webkit-backdrop-filter: blur(30px);
-        border-radius: 36px;
-        padding: 40px;
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-radius: 21px;
+        padding: 24px;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
     }
 
@@ -108,7 +105,6 @@ st.markdown("""
         }
     }
 
-    /* Customizzazione Chat Streamlit per nascondere i default */
     [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {
         display: none !important;
     }
@@ -119,22 +115,20 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    /* Titoli e testi allineati */
-    h2 { font-size: 2.2rem !important; font-weight: 700; margin-bottom: 15px; color: var(--text-main); }
-    p { color: var(--text-secondary) !important; font-size: 1.15rem; }
+    h2 { font-size: 1.5rem !important; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+    p { color: var(--text-secondary) !important; font-size: 1.05rem; margin-bottom: 0px; }
 
-    /* Fix Input Box in fondo */
     [data-testid="stChatInput"] {
         background-color: var(--card-bg) !important;
         border: 1px solid rgba(134, 134, 139, 0.3) !important;
-        border-radius: 20px !important;
+        border-radius: 16px !important;
         backdrop-filter: blur(20px);
     }
 
     .visual-box {
         background: rgba(255,255,255,0.3);
-        border-radius: 20px;
-        padding: 20px;
+        border-radius: 16px;
+        padding: 15px;
         text-align: center;
     }
     @media (prefers-color-scheme: dark) {
@@ -142,16 +136,15 @@ st.markdown("""
     }
 
     img, video {
-        border-radius: 20px;
+        border-radius: 16px;
         max-width: 100%;
         height: auto;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# Header Premium Apple-Style identico
-st.markdown('<h1 class="brand-title">M-BR0WS3R</h1>', unsafe_allow_html=True)
-st.markdown('<p class="brand-subtitle">L\'intelligence artificiale, ridefinita.</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="brand-title">M-AI</h1>', unsafe_allow_html=True)
+st.markdown('<p class="brand-subtitle">L\'intelligenza artificiale, ridefinita.</p>', unsafe_allow_html=True)
 
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
@@ -182,9 +175,8 @@ def generate_mock_matrix():
     matrix = np.random.uniform(-1, 1, (1, 128))
     return matrix.tolist()[0]
 
-# Renderizzazione della cronologia dentro le Card con Bordo Arcobaleno Animato
 for message in st.session_state.messages:
-    role_title = "Tu" if message["role"] == "user" else "M-BR0WS3R"
+    role_title = "Tu" if message["role"] == "user" else "M-AI"
     
     st.markdown(f"""
     <div class="card-container">
@@ -207,7 +199,6 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Carica volto per estrazione matrice", type=["jpg", "jpeg", "png"])
 
 if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
-    # Messaggio Utente
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
     st.markdown(f"""
     <div class="card-container">
@@ -218,21 +209,19 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
     </div>
     """, unsafe_allow_html=True)
 
-    # Risposta Assistente dentro la Card con stile esatto
     p = prompt.lower()
     
     st.markdown("""
     <div class="card-container">
         <div class="card">
-            <h2>M-BR0WS3R</h2>
+            <h2>M-AI</h2>
     """, unsafe_allow_html=True)
     
-    # 1. BIOMETRIA
     if uploaded_file is not None and any(x in p for x in ["matrice", "cerca", "analizza", "identifica"]):
         matrice = generate_mock_matrix()
         st.markdown(f"""
-        <div class="visual-box" style="margin-bottom:20px;">
-            <p style="font-size:0.9rem; font-family:monospace; word-break:break-all;">Vector_Matrix: {str(matrice[:6])}...</p>
+        <div class="visual-box" style="margin-bottom:15px;">
+            <p style="font-size:0.85rem; font-family:monospace; word-break:break-all;">Vector_Matrix: {str(matrice[:6])}...</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -248,13 +237,11 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
         except Exception as e:
             st.error(f"Errore: {e}")
             
-    # 2. IDENTITÀ CRONOLOGICA
     elif any(x in p for x in ["creato", "progettato", "manuel", "chi ti ha fatto"]):
         risposta = "Sono stata progettata da Manuel Manera."
         st.write_stream(stream_data(risposta))
         st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
-    # 3. IMMAGINI
     elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
         clean_p = prompt.replace(" ", "%20")
         img_url = f"https://image.pollinations.ai/p/{clean_p}?width=1024&height=1024&seed={random.randint(1,99999)}&model=flux"
@@ -269,14 +256,12 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
         if not success: 
             st.write("Server lento. Riprova.")
 
-    # 4. VIDEO
     elif "video" in p:
         clean_p = prompt.replace(" ", "%20")
         video_html = f'<div class="visual-box"><video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video></div>'
         st.html(video_html)
         st.session_state.messages.append({"role": "assistant", "content": video_html, "type": "video"})
 
-    # 5. DIALOGO GENERALE + SEARCH
     else:
         try:
             search = ""
@@ -286,7 +271,7 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
             completion = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "Sei l'architettura AI M-BR0WS3R creata da Manuel Manera."},
+                    {"role": "system", "content": "Sei l'architettura AI M-AI creata da Manuel Manera."},
                     {"role": "user", "content": f"Contesto: {search}\n\nDomanda: {prompt}"}
                 ]
             )
