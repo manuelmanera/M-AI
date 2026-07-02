@@ -14,7 +14,7 @@ st.markdown("""
     <style>
     :root {
         --bg-color: #f5f5f7;
-        --card-bg: rgba(255, 255, 255, 0.7);
+        --card-bg: rgba(255, 255, 255, 0.05);
         --text-main: #1d1d1f;
         --text-secondary: #86868b;
         --gradient-1: #ff00cc;
@@ -25,7 +25,7 @@ st.markdown("""
     @media (prefers-color-scheme: dark) {
         :root {
             --bg-color: #0b0b0d;
-            --card-bg: rgba(28, 28, 32, 0.6);
+            --card-bg: rgba(255, 255, 255, 0.05);
             --text-main: #f5f5f7;
             --text-secondary: #9a9a9f;
         }
@@ -66,7 +66,6 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
-    /* Stile per le etichette dei nomi esterne e piccole */
     .chat-role-label {
         font-size: 0.85rem !important;
         font-weight: 600;
@@ -77,7 +76,6 @@ st.markdown("""
         margin-left: 8px;
     }
 
-    /* Il contenitore con bordo arcobaleno avvolge SOLO il testo della chat */
     .card-container {
         position: relative;
         padding: 3px;
@@ -97,18 +95,9 @@ st.markdown("""
     .card {
         position: relative;
         z-index: 1;
-        background: var(--card-bg);
-        backdrop-filter: blur(25px);
-        -webkit-backdrop-filter: blur(25px);
+        background: var(--bg-color);
         border-radius: 17px;
         padding: 18px 24px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .card {
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-        }
     }
 
     [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"] {
@@ -121,23 +110,25 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    p { color: var(--text-main) !important; font-size: 1.05rem; margin-bottom: 0px; }
+    .card p { 
+        color: var(--text-main) !important; 
+        font-size: 1.05rem; 
+        margin-bottom: 0px !important;
+        display: inline !important;
+    }
 
     [data-testid="stChatInput"] {
-        background-color: var(--card-bg) !important;
+        background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid rgba(134, 134, 139, 0.3) !important;
         border-radius: 16px !important;
         backdrop-filter: blur(20px);
     }
 
     .visual-box {
-        background: rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.05);
         border-radius: 16px;
         padding: 15px;
         text-align: center;
-    }
-    @media (prefers-color-scheme: dark) {
-        .visual-box { background: rgba(255, 255, 255, 0.08); }
     }
 
     img, video {
@@ -161,11 +152,6 @@ client = Groq(api_key=api_key)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-def stream_data(text):
-    for word in text.split(" "):
-        yield word + " "
-        time.sleep(0.04)
-
 def is_valid_image(url):
     try:
         response = requests.head(url, timeout=5)
@@ -180,25 +166,27 @@ def generate_mock_matrix():
     matrix = np.random.uniform(-1, 1, (1, 128))
     return matrix.tolist()[0]
 
-# Renderizzazione della cronologia passata
+# Renderizzazione dello storico dei messaggi nelle caselle corrette
 for message in st.session_state.messages:
     role_title = "Tu" if message["role"] == "user" else "M-AI"
-    
     st.markdown(f'<div class="chat-role-label">{role_title}</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="card-container">
-        <div class="card">
-            <div id="content-anchor">
-    """, unsafe_allow_html=True)
     
-    if message["type"] == "image": 
+    if message["type"] == "text":
+        st.markdown(f"""
+        <div class="card-container">
+            <div class="card">
+                <p>{message['content']}</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    elif message["type"] == "image":
+        st.markdown('<div class="card-container"><div class="card">', unsafe_allow_html=True)
         st.image(message["content"])
-    elif message["type"] == "video": 
+        st.markdown('</div></div>', unsafe_allow_html=True)
+    elif message["type"] == "video":
+        st.markdown('<div class="card-container"><div class="card">', unsafe_allow_html=True)
         st.html(message["content"])
-    else: 
-        st.markdown(f"<p>{message['content']}</p>", unsafe_allow_html=True)
-        
-    st.markdown("</div></div></div>", unsafe_allow_html=True)
+        st.markdown('</div></div>', unsafe_allow_html=True)
 
 with st.sidebar:
     st.markdown("<h3 style='color:var(--text-main);'>Sistema Biometrico</h3>", unsafe_allow_html=True)
@@ -207,7 +195,7 @@ with st.sidebar:
 if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
     st.session_state.messages.append({"role": "user", "content": prompt, "type": "text"})
     
-    # Messaggio Utente (Nome fuori, testo dentro il box)
+    # Messaggio Utente
     st.markdown('<div class="chat-role-label">Tu</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="card-container">
@@ -219,57 +207,41 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
 
     p = prompt.lower()
     
-    # Risposta Assistente (Nome fuori, testo dentro il box)
+    # Messaggio Assistente (Viene creato un box vuoto iniziale)
     st.markdown('<div class="chat-role-label">M-AI</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="card-container">
-        <div class="card">
-    """, unsafe_allow_html=True)
+    response_placeholder = st.empty()
+
+    risposta = ""
+    tipo_risposta = "text"
     
     if uploaded_file is not None and any(x in p for x in ["matrice", "cerca", "analizza", "identifica"]):
         matrice = generate_mock_matrix()
-        st.markdown(f"""
-        <div class="visual-box" style="margin-bottom:15px;">
-            <p style="font-size:0.85rem; font-family:monospace; word-break:break-all; color:var(--text-secondary) !important;">Vector_Matrix: {str(matrice[:6])}...</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         base64_image = encode_image(uploaded_file)
         try:
             response = client.chat.completions.create(
                 model="llama-3.2-11b-vision-preview",
-                messages=[{"role": "user", "content": [{"type": "text", "text": f"Dato l'embedding, identifica la persona (nome e social finti). Profilo finto. Domanda: {prompt}"}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}]
+                messages=[{"role": "user", "content": [{"type": "text", "text": f"Dato l'embedding, identifica la persona (nome e social finti). Domanda: {prompt}"}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}]
             )
             risposta = response.choices[0].message.content
-            st.write_stream(stream_data(risposta))
-            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
         except Exception as e:
-            st.error(f"Errore: {e}")
+            risposta = f"Errore: {e}"
             
     elif any(x in p for x in ["creato", "progettato", "manuel", "chi ti ha fatto"]):
         risposta = "Sono stata progettata da Manuel Manera."
-        st.write_stream(stream_data(risposta))
-        st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
 
     elif any(x in p for x in ["foto", "immagine", "disegna", "genera"]):
         clean_p = prompt.replace(" ", "%20")
         img_url = f"https://image.pollinations.ai/p/{clean_p}?width=1024&height=1024&seed={random.randint(1,99999)}&model=flux"
-        success = False
-        for _ in range(3):
-            if is_valid_image(img_url):
-                st.image(img_url)
-                st.session_state.messages.append({"role": "assistant", "content": img_url, "type": "image"})
-                success = True
-                break
-            time.sleep(2)
-        if not success: 
-            st.write("Server lento. Riprova.")
+        if is_valid_image(img_url):
+            risposta = img_url
+            tipo_risposta = "image"
+        else:
+            risposta = "Errore durante la generazione dell'immagine."
 
     elif "video" in p:
         clean_p = prompt.replace(" ", "%20")
-        video_html = f'<div class="visual-box"><video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video></div>'
-        st.html(video_html)
-        st.session_state.messages.append({"role": "assistant", "content": video_html, "type": "video"})
+        risposta = f'<div class="visual-box"><video width="100%" controls autoplay loop><source src="https://pollinations.ai/p/{clean_p}?model=video" type="video/mp4"></video></div>'
+        tipo_risposta = "video"
 
     else:
         try:
@@ -285,9 +257,27 @@ if prompt := st.chat_input("Chiedi qualcosa o analizza una foto..."):
                 ]
             )
             risposta = completion.choices[0].message.content
-            st.write_stream(stream_data(risposta))
-            st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
         except Exception as e:
-            st.error(f"Errore: {e}")
+            risposta = f"Errore: {e}"
 
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    # Aggiorna il box inserendo l'HTML definitivo contenente il testo
+    st.session_state.messages.append({"role": "assistant", "content": risposta, "type": tipo_risposta})
+    
+    if tipo_risposta == "text":
+        response_placeholder.markdown(f"""
+        <div class="card-container">
+            <div class="card">
+                <p>{risposta}</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    elif tipo_risposta == "image":
+        with response_placeholder.container():
+            st.markdown('<div class="card-container"><div class="card">', unsafe_allow_html=True)
+            st.image(risposta)
+            st.markdown('</div></div>', unsafe_allow_html=True)
+    elif tipo_risposta == "video":
+        with response_placeholder.container():
+            st.markdown('<div class="card-container"><div class="card">', unsafe_allow_html=True)
+            st.html(risposta)
+            st.markdown('</div></div>', unsafe_allow_html=True)
