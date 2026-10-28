@@ -1,0 +1,25 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          ".validate": "newData.hasChildren(['name'])"
+        },
+        "chats": {
+          "$chatId": {
+            ".validate": "newData.hasChildren(['title'])",
+            "messages": {
+              "$messageId": {
+                ".validate": "newData.hasChildren(['role', 'content', 'createdAt']) && (newData.child('role').val() === 'user' || newData.child('role').val() === 'assistant') && newData.child('content').isString() && newData.child('content').val().length <= 12000"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

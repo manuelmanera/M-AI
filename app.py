@@ -1,31 +1,35 @@
-        else:
-            try:
-                search = ""
-                # Effettua la ricerca web solo se la domanda non è un semplice saluto
-                if len(prompt) > 4 and not any(x in p for x in ["ciao", "buongiorno", "ehi", "salve"]):
-                    with DDGS() as ddgs:
-                        for r in ddgs.text(prompt, max_results=3): 
-                            search += f"\n- {r['body']}"
-                
-                # Prompt di sistema rinforzato per evitare che il modello si confonda
-                system_instruction = (
-                    "Tu SEI M-AI, un'architettura d'intelligenza artificiale avanzata creata interamente da Manuel Manera. "
-                    "Rispondi sempre in prima persona come M-AI. Non dire mai che non conosci Manuel Manera o M-AI, perché tu sei quella stessa IA. "
-                    "Sii cordiale, conciso e rispondi nella lingua dell'utente."
-                )
+import os
+from flask import Flask, request, jsonify, send_from_directory
+from groq import Groq
 
-                user_content = f"Contesto web: {search}\n\nDomanda utente: {prompt}" if search else prompt
+app = Flask(__name__, static_folder=".")
+client = Groq(api_key=os.environ.get("GROQ_API_KEY", ""))
 
-                completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": system_instruction},
-                        {"role": "user", "content": user_content}
-                    ]
-                )
-                risposta = completion.choices[0].message.content
-                st.write_stream(stream_data(risposta))
-                st.session_state.messages.append({"role": "assistant", "content": risposta, "type": "text"})
-            except Exception as e:
-                st.error(f"Errore: {e}")
+@app.get("/")
+def home():
+    return send_from_directory(".", "index.html")
 
+@app.post("/api/chat")
+def chat():
+    if not os.environ.get("GROQ_API_KEY"):
+        return jsonify(error="Manca GROQ_API_KEY nelle variabili d'ambiente del server."), 503
+    data = request.get_json(silent=True) or {}
+    prompt = str(data.get("prompt", "")).strip()
+    if not prompt:
+        return jsonify(error="Il messaggio è vuoto."), 400
+    history = data.get("history", [])
+    messages = [{"role":"system","content":"Sei M-AI, un assistente utile e cordiale. Rispondi in italiano se l'utente scrive in italiano. Non inventare fatti e segnala l'incertezza."}]
+    if isinstance(history, list):
+        for item in history[-20:]:
+            if isinstance(item, dict) and item.get("role") in ("user","assistant") and isinstance(item.get("content"), str):
+                messages.append({"role":item["role"],"content":item["content"][:8000]})
+    messages.append({"role":"user","content":prompt[:8000]})
+    try:
+        result = client.chat.completions.create(model=os.environ.get("GROQ_MODEL","llama-3.1-8b-instant"), messages=messages)
+        return jsonify(answer=result.choices[0].message.content or "")
+    except Exception as exc:
+        app.logger.exception("Errore chiamata modello")
+        return jsonify(error="Il servizio AI non è riuscito a rispondere. Controlla la chiave, il modello e i log del server."), 502
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT","5000")), debug=False)

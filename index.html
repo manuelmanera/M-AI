@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M-AI</title>
+<style>
+:root{color-scheme:dark;--bg:#242424;--side:#505050;--bubble:#505050;--line:#181818;--text:#f5f5f5;--muted:#bdbdbd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 Arial,Helvetica,sans-serif;height:100dvh;overflow:hidden}
+button,input{font:inherit}button{cursor:pointer;border:0;color:inherit}#app{height:100dvh;display:grid;grid-template-columns:226px 1fr}
+.sidebar{background:var(--side);padding:12px 10px;display:flex;flex-direction:column;gap:7px;min-width:0;overflow:auto}
+.topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}.avatar{width:23px;height:23px;border-radius:50%;background:#c9d3dc;display:inline-block;flex:none}
+.sideinput{width:100%;background:transparent;color:white;border:0;border-bottom:2px solid #272727;padding:6px 10px;outline:none}
+.sidebtn{background:transparent;text-align:left;padding:9px 10px;border-radius:7px}.sidebtn:hover,.sidebtn.active{background:#626262}
+.sectionlabel{padding:5px 10px 0;font-weight:600}.chatlist{display:flex;flex-direction:column;gap:4px}.chatitem{display:flex;align-items:center;gap:5px}.chatitem button:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.small{font-size:12px;color:var(--muted)}.danger{color:#ffb6b6}
+.main{position:relative;min-width:0;height:100dvh;display:flex;flex-direction:column;border-left:1px solid #111}
+.header{height:72px;display:flex;align-items:center;justify-content:center;flex:none}.brand{font-size:clamp(36px,6vw,72px);font-weight:750;letter-spacing:-2px;margin:0}
+#messages{flex:1;overflow:auto;padding:12px max(24px,8vw) 24px;display:flex;flex-direction:column;gap:22px;scroll-behavior:smooth}
+.welcome{margin:auto auto 0;text-align:center}.welcome h1{font-size:clamp(44px,7vw,72px);margin:0 0 14px}
+.message{max-width:min(78%,760px);padding:14px 18px;border-radius:20px;background:var(--bubble);white-space:pre-wrap;overflow-wrap:anywhere}.message.user{align-self:flex-end;border-bottom-right-radius:7px}.message.assistant{align-self:flex-start;border-bottom-left-radius:7px}.message p{margin:0}
+.composerwrap{padding:10px max(24px,8vw) 24px;flex:none}.composer{display:flex;align-items:center;gap:8px;background:var(--bubble);border-radius:19px;padding:9px 9px 9px 14px;max-width:900px;margin:auto}
+#prompt{flex:1;min-width:0;resize:none;max-height:150px;background:transparent;border:0;color:white;outline:0;padding:5px 0}
+#send{width:32px;height:32px;border-radius:8px;background:#888;color:#333;font-size:22px;line-height:1}#send:disabled{opacity:.45;cursor:wait}
+#authscreen{position:fixed;inset:0;background:#242424;display:grid;place-items:center;z-index:5;padding:20px}
+.authcard{width:min(420px,100%);background:#333;border:1px solid #484848;border-radius:18px;padding:28px;box-shadow:0 16px 55px #0006}
+.authcard h1{font-size:48px;margin:0 0 4px}.authcard p{color:#ccc}.authcard input{width:100%;padding:12px;border:1px solid #666;border-radius:9px;background:#252525;color:white;margin:6px 0}
+.primary,.secondary{width:100%;padding:12px;border-radius:10px;margin-top:9px}.primary{background:#eee;color:#222;font-weight:bold}.secondary{background:#505050}.status{font-size:13px;color:#ddd;min-height:18px;margin-top:8px}.mobiletop{display:none}
+@media(max-width:650px){#app{grid-template-columns:1fr}.sidebar{display:none}.main{border:0}.mobiletop{display:block;position:absolute;top:12px;left:12px;z-index:2}.header{height:64px}.brand{font-size:40px}#messages{padding:16px 16px 20px}.message{max-width:90%}.composerwrap{padding:10px 12px 16px}}
+</style>
+</head>
+<body>
+<div id="authscreen">
+ <div class="authcard">
+  <h1>M-AI</h1><p>Accedi per continuare alle tue chat.</p>
+  <button class="primary" id="google">Continua con Google</button>
+  <input id="email" type="email" autocomplete="email" placeholder="Email">
+  <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+  <button class="secondary" id="login">Accedi</button><button class="secondary" id="signup">Crea account</button>
+  <div class="status" id="authstatus"></div>
+ </div>
+</div>
+<div id="app" hidden>
+ <aside class="sidebar">
+  <div class="topline"><span class="small" id="userlabel">Utente</span><span class="avatar" title="Account"></span></div>
+  <input class="sideinput" id="displayname" placeholder="Nome utente" maxlength="40">
+  <button class="sidebtn" id="saveprofile">Salva nome</button>
+  <button class="sidebtn" id="newprivate">Chat privata (non salvata)</button>
+  <button class="sidebtn" id="newchat">+ Nuova chat</button>
+  <div class="sectionlabel">Chat:</div><div class="chatlist" id="chatlist"></div>
+  <div style="margin-top:auto"><div class="small" id="syncstatus">Connesso</div><button class="sidebtn" id="logout">Esci</button></div>
+ </aside>
+ <main class="main">
+  <button class="sidebtn mobiletop" id="mobilemenu" aria-label="Mostra chat">☰</button>
+  <header class="header"><h1 class="brand">M-AI</h1></header>
+  <section id="messages" aria-live="polite"><div class="welcome"><h1>M-AI</h1></div></section>
+  <div class="composerwrap"><form class="composer" id="chatform"><textarea id="prompt" rows="1" placeholder="Scrivi qualcosa" aria-label="Scrivi qualcosa"></textarea><button id="send" type="submit" title="Invia">↑</button></form></div>
+ </main>
+</div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,updateProfile} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getDatabase,ref,set,get,update,push,onValue,remove} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const firebaseConfig={
+ apiKey:"AIzaSyBvd-XvoYz8RZlPX7eEM5C5gMGtbz-9hHE",
+ authDomain:"m-ai-b9933.firebaseapp.com",
+ databaseURL:"INSERISCI_QUI_L_URL_DEL_REALTIME_DATABASE",
+ projectId:"m-ai-b9933",
+ storageBucket:"m-ai-b9933.firebasestorage.app",
+ messagingSenderId:"130412073844",
+ appId:"1:130412073844:web:517203f18382cd003ad221",
+ measurementId:"G-H3WTX74HRV"
+};
+const authApp=initializeApp(firebaseConfig),auth=getAuth(authApp);
+const db=getDatabase(authApp);
+const $=id=>document.getElementById(id);
+let currentUser=null,currentChat=null,isPrivate=false,chatIndex={},messagesUnsub=null,chatListUnsub=null;
+const privateChats=new Map();
+function status(t){$("authstatus").textContent=t}
+function friendlyError(e){return e?.message?.replace("Firebase: ","")||"Si è verificato un errore."}
+$("google").onclick=async()=>{try{await signInWithPopup(auth,new GoogleAuthProvider())}catch(e){status(friendlyError(e))}};
+$("login").onclick=async()=>{try{await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value)}catch(e){status(friendlyError(e))}};
+$("signup").onclick=async()=>{try{const c=await createUserWithEmailAndPassword(auth,$("email").value.trim(),$("password").value);await updateProfile(c.user,{displayName:$("displayname").value.trim()||$("email").value.split("@")[0]})}catch(e){status(friendlyError(e))}};
+$("logout").onclick=()=>signOut(auth);
+onAuthStateChanged(auth,async user=>{
+ currentUser=user;
+ if(!user){$("authscreen").hidden=false;$("app").hidden=true;if(messagesUnsub)messagesUnsub();if(chatListUnsub)chatListUnsub();return}
+ if(firebaseConfig.databaseURL.includes("INSERISCI_QUI")){status("Configura databaseURL in index.html prima di usare le chat.");$("authscreen").hidden=false;return}
+ $("authscreen").hidden=true;$("app").hidden=false;$("userlabel").textContent=user.displayName||user.email||"Utente";$("displayname").value=user.displayName||"";
+ const profile=ref(db,`users/${user.uid}/profile`);
+ const snap=await get(profile);if(!snap.exists())await set(profile,{name:user.displayName||user.email?.split("@")[0]||"Utente",email:user.email||"",createdAt:Date.now()});
+ loadChatList();createChat();
+});
+$("saveprofile").onclick=async()=>{if(!currentUser)return;const name=$("displayname").value.trim().slice(0,40);if(!name)return;await updateProfile(currentUser,{displayName:name});await update(ref(db,`users/${currentUser.uid}/profile`),{name});$("userlabel").textContent=name};
+function loadChatList(){if(chatListUnsub)chatListUnsub();chatListUnsub=onValue(ref(db,`users/${currentUser.uid}/chats`),s=>{chatIndex=s.val()||{};renderChatList()})}
+function renderChatList(){const box=$("chatlist");box.replaceChildren();Object.entries(chatIndex).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0)).forEach(([id,c])=>{const row=document.createElement("div");row.className="chatitem";const b=document.createElement("button");b.className="sidebtn"+(!isPrivate&&id===currentChat?" active":"");b.textContent=c.title||"Nuova chat";b.onclick=()=>openChat(id);const del=document.createElement("button");del.className="sidebtn danger";del.textContent="×";del.title="Elimina chat";del.onclick=async()=>{if(confirm("Eliminare questa chat e i suoi messaggi?")){await remove(ref(db,`users/${currentUser.uid}/chats/${id}`));if(currentChat===id)createChat()}};row.append(b,del);box.append(row)})}
+function addMessage(role,content){const empty=$("messages").querySelector(".welcome");if(empty)empty.remove();const el=document.createElement("div");el.className="message "+(role==="user"?"user":"assistant");el.textContent=content;$("messages").append(el);$("messages").scrollTop=$("messages").scrollHeight;return el}
+function clearMessages(){if(messagesUnsub){messagesUnsub();messagesUnsub=null}$("messages").replaceChildren()}
+function createChat(){currentChat=push(ref(db,`users/${currentUser.uid}/chats`)).key;isPrivate=false;set(ref(db,`users/${currentUser.uid}/chats/${currentChat}`),{title:"Nuova chat",createdAt:Date.now(),updatedAt:Date.now()});openChat(currentChat)}
+function openChat(id){currentChat=id;isPrivate=false;renderChatList();clearMessages();messagesUnsub=onValue(ref(db,`users/${currentUser.uid}/chats/${id}/messages`),s=>{const vals=s.val()||{};Object.values(vals).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).forEach(m=>addMessage(m.role,m.content));if(!Object.keys(vals).length){const w=document.createElement("div");w.className="welcome";w.innerHTML="<h1>M-AI</h1>";$("messages").append(w)}})}
+$("newchat").onclick=createChat;
+$("newprivate").onclick=()=>{if(messagesUnsub){messagesUnsub();messagesUnsub=null}isPrivate=true;currentChat="private-"+Date.now();privateChats.set(currentChat,[]);renderChatList();clearMessages();const w=document.createElement("div");w.className="welcome";w.innerHTML="<h1>M-AI</h1><p>Chat privata: non viene salvata su Firebase.</p>";$("messages").append(w)};
+$("mobilemenu").onclick=()=>{alert("Su schermi piccoli, usa il pulsante Nuova chat quando riapri la versione desktop.")};
+$("chatform").onsubmit=async e=>{e.preventDefault();const prompt=$("prompt").value.trim();if(!prompt||!currentUser)return;$("prompt").value="";addMessage("user",prompt);$("send").disabled=true;$("syncstatus").textContent="M-AI sta rispondendo…";
+ try{
+  let history=[];
+  if(isPrivate)history=privateChats.get(currentChat)||[];
+  else {const snap=await get(ref(db,`users/${currentUser.uid}/chats/${currentChat}/messages`));history=Object.values(snap.val()||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).slice(-20).map(m=>({role:m.role,content:m.content}))}
+  const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,history})});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||"Errore del server AI");const answer=data.answer||"Non ho ricevuto una risposta.";
+  addMessage("assistant",answer);
+  if(isPrivate){privateChats.set(currentChat,[...history,{role:"user",content:prompt},{role:"assistant",content:answer}])}
+  else {const chatRef=ref(db,`users/${currentUser.uid}/chats/${currentChat}`);const snap=await get(chatRef);const old=snap.val()||{};const msgRef=ref(db,`users/${currentUser.uid}/chats/${currentChat}/messages`);await push(msgRef,{role:"user",content:prompt,createdAt:Date.now()});await push(msgRef,{role:"assistant",content:answer,createdAt:Date.now()});await update(chatRef,{title:old.title==="Nuova chat"?prompt.slice(0,36):old.title,updatedAt:Date.now()})}
+ }catch(err){addMessage("assistant","Errore: "+err.message)}finally{$("send").disabled=false;$("syncstatus").textContent="Connesso";$("prompt").focus()}
+};
+$("prompt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chatform").requestSubmit()}});
+</script>
+</body></html>
